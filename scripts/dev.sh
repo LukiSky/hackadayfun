@@ -1,43 +1,34 @@
 #!/usr/bin/env bash
-# Start ImpactLens backend + frontend for local development.
+# ImpactLens AI — FastAPI backend + Vite frontend
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+BACKEND="$ROOT/backend"
+FRONTEND="$ROOT/frontend"
+VENV="$BACKEND/.venv"
 
-BACKEND_DIR="$ROOT/backend"
-FRONTEND_DIR="$ROOT/frontend"
-VENV="$BACKEND_DIR/.venv"
-
-if [[ ! -f "$BACKEND_DIR/.env" ]]; then
-  cp "$BACKEND_DIR/.env.example" "$BACKEND_DIR/.env"
-  echo "Created backend/.env from .env.example — add HF_TOKEN for full LLM."
+if [[ ! -f "$BACKEND/.env" ]]; then
+  cp "$BACKEND/.env.example" "$BACKEND/.env"
+  echo "Created backend/.env — set HF_TOKEN for LLM."
 fi
 
 if [[ ! -d "$VENV" ]]; then
-  echo "Creating Python venv…"
   python3 -m venv "$VENV"
 fi
-
 # shellcheck source=/dev/null
 source "$VENV/bin/activate"
-pip install -q -r "$BACKEND_DIR/requirements.txt"
+pip install -q -r "$BACKEND/requirements.txt"
 
-cd "$FRONTEND_DIR"
-if [[ ! -d node_modules ]]; then
-  echo "Installing frontend dependencies…"
-  npm install
-fi
+cd "$FRONTEND"
+[[ -d node_modules ]] || npm install
 
-echo "Starting Flask API on http://localhost:5000"
-cd "$BACKEND_DIR"
-python app.py &
-BACKEND_PID=$!
+echo "API:  http://localhost:5000  (uvicorn)"
+echo "UI:   http://localhost:5173  (vite)"
+echo "Press Ctrl+C to stop both."
 
-cleanup() {
-  kill "$BACKEND_PID" 2>/dev/null || true
-}
-trap cleanup EXIT INT TERM
-
-sleep 1
-echo "Starting Vite on http://localhost:5173"
-cd "$FRONTEND_DIR"
+cd "$BACKEND"
+uvicorn main:app --host 127.0.0.1 --port 5000 --reload &
+API_PID=$!
+trap 'kill $API_PID 2>/dev/null || true' EXIT INT TERM
+sleep 2
+cd "$FRONTEND"
 npm run dev

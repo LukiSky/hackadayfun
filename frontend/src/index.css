@@ -2,17 +2,42 @@
 @tailwind components;
 @tailwind utilities;
 
-@layer components {
-  .card {
-    @apply rounded-xl border border-slate-200 bg-white p-6 shadow-sm;
-  }
-  .btn-primary {
-    @apply inline-flex items-center justify-center rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50;
-  }
-  .btn-secondary {
-    @apply inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50;
-  }
-  .input {
-    @apply w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100;
-  }
+:root {
+  color: #000000;
+  background: #ffffff;
+  font-family: "Proxima Nova", Arial, sans-serif;
+  font-synthesis: none;
+  line-height: 1.5;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+.font-garage {
+  font-family: Garage, Arial, sans-serif;
+}
+
+.recharts-wrapper text {
+  fill: rgba(0, 0, 0, 0.62);
+  font-family: "Proxima Nova", Arial, sans-serif;
 }

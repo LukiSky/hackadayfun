@@ -4,15 +4,19 @@ export default {
   theme: {
     extend: {
       colors: {
-        brand: {
-          50: "#f0f7ff",
-          100: "#dceeff",
-          500: "#2563eb",
-          600: "#1d4ed8",
-          700: "#1e40af",
-        },
+        lifeYellow: "#FFD100",
+        lifeBlue: "#87BAE5",
+        lifeBlack: "#000000",
+        lifeWhite: "#FFFFFF",
+      },
+      fontFamily: {
+        garage: ["Garage", "Arial", "sans-serif"],
+        proxima: ["Proxima Nova", "Arial", "sans-serif"],
+      },
+      borderRadius: {
+        xl: "0.75rem",
       },
     },
   },
   plugins: [],
-};
+}

@@ -47,12 +47,15 @@ def analyze_program_data() -> dict:
         )
 
     meta = a["meta"]
+    summary = a["summary"]
     return {
-        "overall_summary": a["summary"],
+        "overall_summary": summary,
         "program_insights": program_insights,
         "quarterly_trends": a["quarterly_trends"],
+        "question_analysis": a.get("question_analysis", []),
         "citations": [
-            f"Loaded {meta['record_count']} session records from {meta['dataset_name']}.",
-            f"{a['summary']['at_risk_count']} program(s) below attendance ({ATTENDANCE_RISK_THRESHOLD:.0%}) or wellbeing ({WELLBEING_RISK_THRESHOLD}) thresholds.",
+            f"Loaded {meta['record_count']} feedback responses from {meta['dataset_name']}.",
+            f"{meta.get('workshop_count', summary.get('total_sessions', 0))} workshops across {summary.get('unique_schools', 0)} schools.",
+            f"{summary['at_risk_count']} topic/workshop group(s) flagged for follow-up.",
         ],
     }

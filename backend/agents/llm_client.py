@@ -2,11 +2,14 @@ import os
 from openai import OpenAI
 
 BASE_URL = os.environ.get("HF_BASE_URL", "https://router.huggingface.co/v1")
-DEFAULT_MODEL = "google/gemma-2-9b-it:novita"
+# Must match a model id from GET https://router.huggingface.co/v1/models (no :provider suffix)
+DEFAULT_MODEL = "google/gemma-4-31B-it"
 
 
 def get_model() -> str:
-    return os.environ.get("HF_MODEL", DEFAULT_MODEL)
+    raw = (os.environ.get("HF_MODEL") or DEFAULT_MODEL).strip()
+    # Router uses bare model ids (e.g. google/gemma-4-31B-it), not model:provider
+    return raw.split(":", 1)[0] if ":" in raw else raw
 
 
 def get_ai_client() -> OpenAI:
