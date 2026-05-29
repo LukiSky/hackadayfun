@@ -1,0 +1,85 @@
+{
+  "organization": "Lifechanger (mock export)",
+  "export_date": "2026-05-15",
+  "programs": [
+    {
+      "id": "prog-001",
+      "name": "Resilience Foundations",
+      "cohort": "Year 9 - North Coast",
+      "participants": 48,
+      "sessions_completed": 6,
+      "attendance_rate": 0.91,
+      "wellbeing_score_avg": 4.2,
+      "confidence_score_avg": 4.0,
+      "mentor_rating_avg": 4.6,
+      "status": "active"
+    },
+    {
+      "id": "prog-002",
+      "name": "Leadership Pathways",
+      "cohort": "Year 10 - Metro East",
+      "participants": 36,
+      "sessions_completed": 5,
+      "attendance_rate": 0.78,
+      "wellbeing_score_avg": 3.4,
+      "confidence_score_avg": 3.2,
+      "mentor_rating_avg": 4.1,
+      "status": "active"
+    },
+    {
+      "id": "prog-003",
+      "name": "Community Connect",
+      "cohort": "Year 8 - Regional West",
+      "participants": 52,
+      "sessions_completed": 4,
+      "attendance_rate": 0.65,
+      "wellbeing_score_avg": 3.1,
+      "confidence_score_avg": 2.9,
+      "mentor_rating_avg": 3.8,
+      "status": "at_risk"
+    }
+  ],
+  "feedback_samples": [
+    {
+      "program_id": "prog-001",
+      "sentiment": "positive",
+      "theme": "belonging",
+      "quote": "I feel more comfortable speaking up in class and asking for help."
+    },
+    {
+      "program_id": "prog-001",
+      "sentiment": "positive",
+      "theme": "confidence",
+      "quote": "My mentor helped me set goals I actually believe I can reach."
+    },
+    {
+      "program_id": "prog-002",
+      "sentiment": "mixed",
+      "theme": "scheduling",
+      "quote": "Sessions are helpful but sometimes clash with sport training."
+    },
+    {
+      "program_id": "prog-003",
+      "sentiment": "negative",
+      "theme": "engagement",
+      "quote": "Hard to stay motivated when sessions get rescheduled."
+    },
+    {
+      "program_id": "prog-003",
+      "sentiment": "negative",
+      "theme": "support",
+      "quote": "Would like more check-ins between fortnightly meetings."
+    }
+  ],
+  "quarterly_trends": {
+    "overall_attendance": [0.82, 0.85, 0.79, 0.81],
+    "wellbeing_avg": [3.6, 3.7, 3.5, 3.8],
+    "positive_feedback_pct": [0.62, 0.65, 0.58, 0.67]
+  },
+  "funder_highlights": {
+    "total_participants_ytd": 136,
+    "programs_delivered": 3,
+    "schools_partnered": 5,
+    "mentor_volunteer_hours": 420
+  }
+}
