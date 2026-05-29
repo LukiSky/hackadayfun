@@ -1617,7 +1617,7 @@ function ChatPanel({
       role: "assistant",
       sender: "bot",
       content:
-        "For demos: click a sample under “Demo: regenerate dashboard” to load detailed layout instructions, edit them, then Run demo prompt. Or ask a short question below.",
+        "Hi — I'm your impact copilot. Ask anything about the LifeChanger data; I'll remember our conversation in this session. Try follow-ups like “What about workshops?” after your first question.",
     },
   ]);
   const [loading, setLoading] = useState(false);
@@ -1752,6 +1752,12 @@ function ChatPanel({
           trimmedQuestion,
         );
 
+      const wantsChartOnDashboard =
+        /\b(add|show|create|generate|build|make|plot|draw|display|visuali[sz]e)\b/i.test(
+          trimmedQuestion,
+        ) &&
+        /\b(chart|graph|visual|widget|bar|line|pie|kpi)\b/i.test(trimmedQuestion);
+
       const orchestration = await orchestrateLLM({
         userPrompt: trimmedQuestion,
         currentDashboardState: dashboardState,
@@ -1767,7 +1773,8 @@ function ChatPanel({
         dynamicWidgetIds: dashboardWidgets.map((widget) => widget.id),
         useSpeaker: speakEnabled,
         storyMode,
-        questionMode: !forceStoryMode,
+        questionMode: !forceStoryMode && !wantsChartOnDashboard,
+        sessionId: sessionIdRef.current,
       });
 
       if (orchestration.storytellingBlocks?.length || orchestration.visualizations?.length) {

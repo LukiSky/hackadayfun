@@ -140,6 +140,10 @@ class OrchestrateBody(BaseModel):
         default_factory=list,
         description="CURRENT_DASHBOARD_STATE injected into DashboardEditorChain",
     )
+    session_id: str | None = Field(
+        default=None,
+        description="Conversation session for multi-turn chat memory",
+    )
 
 
 _ALLOWED_DASHBOARD_ACTIONS = frozenset(

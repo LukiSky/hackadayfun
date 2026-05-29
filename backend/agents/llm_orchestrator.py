@@ -9,10 +9,11 @@ import re
 import uuid
 from typing import Any
 
-from agents.dashboard_insights import generate_dashboard_insight
+from agents.dashboard_insights import build_local_dashboard_insight, generate_dashboard_insight
 from agents.dashboard_editor import run_dashboard_editor
 from agents.dashboard_supervisor import run_dashboard_supervisor
 from agents.langchain.engine import invoke_chain
+from agents.dashboard_chart_builder import wants_dashboard_chart
 from agents.prompt_intent import is_analytical_question, is_dashboard_control_prompt
 
 logger = logging.getLogger(__name__)
@@ -161,41 +162,17 @@ def _rule_based_mutations(
     )
 
     if wants_chart:
-        by_region = aggregates.get("byRegion") or []
-        by_workshop = aggregates.get("byWorkshop") or []
-        by_theme = aggregates.get("byTheme") or aggregates.get("inferredThemes") or []
+        from agents.dashboard_chart_builder import build_widgets_from_prompt
 
-        if "workshop" in text and by_workshop:
-            widget = _widget_from_series(
-                "Outcome by Workshop", by_workshop, chart_type="bar-chart"
+        widgets = build_widgets_from_prompt(prompt, max_charts=2)
+        for widget in widgets:
+            mutations.append(
+                {
+                    "action": "render-widget",
+                    "target": "dynamic-widgets-area",
+                    "data": widget,
+                }
             )
-        elif "theme" in text or "feedback" in text and by_theme:
-            widget = _widget_from_series(
-                "Feedback by Theme", by_theme, chart_type="bar-chart"
-            )
-        elif "sentiment" in text:
-            sentiment = aggregates.get("sentiment") or []
-            widget = _widget_from_series(
-                "Sentiment Trend", sentiment, chart_type="line-chart"
-            )
-        elif by_region:
-            widget = _widget_from_series(
-                "Outcome by Region", by_region, chart_type="bar-chart"
-            )
-        else:
-            widget = _widget_from_series(
-                "Dataset Overview",
-                [{"name": "Rows", "value": aggregates.get("rowCount") or 0}],
-                chart_type="bar-chart",
-            )
-
-        mutations.append(
-            {
-                "action": "render-widget",
-                "target": "dynamic-widgets-area",
-                "data": widget,
-            }
-        )
 
     if mutations:
         reply = "I've updated the dashboard based on your request."
@@ -344,33 +321,57 @@ def _insight_focus_mutation(suggested_chart: str | None) -> list[dict]:
 
 
 def _answer_analytical_question(payload: dict, state: dict) -> dict:
-    """Detailed evidence-backed reply for plain questions (no dashboard rebuild)."""
+    """Conversational Q&A with session memory + dashboard evidence metadata."""
     prompt = (payload.get("userPrompt") or payload.get("text") or "").strip()
+    session_id = payload.get("session_id")
     aggregates = payload.get("aggregates") or {}
     fields = payload.get("availableFields") or {}
 
-    insight = generate_dashboard_insight(
-        {
-            "question": prompt,
-            "detailed": True,
-            "activeFilters": payload.get("activeFilters") or {},
-            "aggregates": aggregates,
-            "evidenceRows": payload.get("evidenceRows") or [],
-            "availableFields": fields,
-        }
-    )
+    insight_payload = {
+        "question": prompt,
+        "detailed": True,
+        "activeFilters": payload.get("activeFilters") or {},
+        "aggregates": aggregates,
+        "evidenceRows": payload.get("evidenceRows") or [],
+        "availableFields": fields,
+        "session_id": session_id,
+    }
 
-    mutations = _insight_focus_mutation(insight.get("suggestedChart"))
+    base = build_local_dashboard_insight(insight_payload)
+    answer = base.get("answer") or ""
+    source = base.get("source", "local")
+    error_message = base.get("errorMessage")
+
+    if os.environ.get("HF_TOKEN") and prompt:
+        try:
+            from agents.ask_agent import ask_data_question
+
+            ask_result = ask_data_question(prompt, session_id=session_id)
+            if ask_result.get("answer"):
+                answer = ask_result["answer"]
+                source = "langchain"
+                error_message = None
+        except Exception as exc:
+            logger.exception("Conversational ask failed")
+            error_message = str(exc)[:300]
+            if source == "local":
+                answer = (
+                    f"{answer}\n\n"
+                    f"(LLM note: {error_message}. Check HF_TOKEN and model in backend/.env.)"
+                )
+
+    mutations = _insight_focus_mutation(base.get("suggestedChart"))
     return {
-        "botResponseText": insight.get("answer") or "",
+        "botResponseText": answer,
         "dashboardMutations": mutations,
         "dashboardState": state,
-        "source": insight.get("source", "local"),
-        "summaryBullets": insight.get("summaryBullets") or [],
-        "evidenceReferences": insight.get("evidenceReferences") or [],
-        "linkedDataPoints": insight.get("linkedDataPoints") or [],
-        "followUpQuestions": insight.get("followUpQuestions") or [],
-        "errorMessage": insight.get("errorMessage"),
+        "source": source,
+        "summaryBullets": base.get("summaryBullets") or [],
+        "evidenceReferences": base.get("evidenceReferences") or [],
+        "linkedDataPoints": base.get("linkedDataPoints") or [],
+        "followUpQuestions": base.get("followUpQuestions") or [],
+        "errorMessage": error_message,
+        "session_id": session_id,
     }
 
 
@@ -389,12 +390,28 @@ def orchestrate_llm_command(payload: dict) -> dict:
 
     question_mode = bool(payload.get("questionMode"))
     story_mode = bool(payload.get("storyMode"))
+    chart_request = wants_dashboard_chart(prompt) or is_dashboard_control_prompt(prompt)
+
     if (
         not story_mode
         and (question_mode or is_analytical_question(prompt))
-        and not is_dashboard_control_prompt(prompt)
+        and not chart_request
     ):
-        return _answer_analytical_question(payload, state)
+        return _merge_editor_result(
+            _answer_analytical_question(payload, state),
+            payload,
+        )
+
+    if (
+        not story_mode
+        and is_analytical_question(prompt)
+        and chart_request
+    ):
+        insight_result = _answer_analytical_question(payload, state)
+        return _merge_editor_result(
+            _attach_supervisor_layers(insight_result, payload),
+            payload,
+        )
 
     clear_first = bool(
         re.search(

@@ -9,6 +9,7 @@ import os
 logger = logging.getLogger(__name__)
 
 from agents.langchain.engine import invoke_chain
+from agents.langchain.memory import get_memory
 from agents.personas import persona_for_chat
 
 
@@ -271,14 +272,22 @@ def _llm_dashboard_insight(payload: dict, base: dict) -> dict | None:
         "Use only the JSON context provided. Mention active filters when relevant.\n"
         f"{length_rule}"
     )
+    session_id = payload.get("session_id")
+    memory_block = get_memory().context_block(session_id) if session_id else ""
     user_prompt = (
-        f"Context:\n{json.dumps(context, indent=2)}\n\nQuestion: {question}"
+        f"{memory_block}"
+        f"Context:\n{json.dumps(context, indent=2)}\n\n"
+        f"Question: {question}\n\n"
+        "If the user refers to earlier messages (e.g. 'that region', 'compare them'), "
+        "use the conversation history above together with the data context."
     )
 
     try:
         answer = invoke_chain(system_prompt, user_prompt, temperature=0.35).strip()
         if not answer:
             return None
+        if session_id:
+            get_memory().append_exchange(session_id, question, answer)
         enriched = dict(base)
         enriched["answer"] = answer
         enriched["source"] = "langchain"

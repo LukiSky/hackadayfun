@@ -8,6 +8,7 @@ import os
 import re
 import uuid
 
+from agents.dashboard_chart_builder import build_primary_widget_from_prompt, wants_dashboard_chart
 from agents.dashboard_supervisor import run_data_visualization_chain, run_storytelling_chain
 from agents.langchain.engine import invoke_chain
 
@@ -61,6 +62,8 @@ def classify_intent(prompt: str, current_widgets: list[dict]) -> str:
         return "DELETE_WIDGET"
     if _EDIT_INTENT.search(text):
         return "EDIT_EXISTING"
+    if wants_dashboard_chart(text):
+        return "ADD"
     if re.search(r"\b(add|show|create|generate|new)\b", text, re.I):
         return "ADD"
     if re.search(r"\b(pie|bar|line|chart|kpi)\b", text, re.I):
@@ -81,33 +84,16 @@ def _resolve_target_id(prompt: str, widgets: list[dict]) -> str | None:
 
 
 def _build_add_widget(prompt: str, aggregates: dict) -> dict:
-    viz = run_data_visualization_chain(prompt, aggregates)
-    chart = viz["chartConfig"]
-    lower = prompt.lower()
-    chart_type = chart.get("type", "bar-chart")
-    if "pie" in lower:
-        chart_type = "pie-chart"
-    elif "line" in lower and "bar" not in lower:
-        chart_type = "line-chart"
-    elif "kpi" in lower:
-        return {
-            "id": f"widget-{uuid.uuid4().hex[:8]}",
-            "type": "kpi-card",
-            "title": "New KPI",
-            "value": str(aggregates.get("rowCount", 0)),
-            "gridPos": "top-right",
-            "dataSource": "lifechanger-csv",
-        }
-    return {
-        "id": f"widget-{uuid.uuid4().hex[:8]}",
-        "type": chart_type,
-        "title": chart.get("title") or "New chart",
-        "labels": chart.get("labels", []),
-        "values": chart.get("values", []),
-        "gridPos": "bottom-full",
-        "dataSource": "lifechanger-csv",
-        "renderStatus": "active",
-    }
+    return build_primary_widget_from_prompt(prompt, aggregates)
+
+
+def _build_add_widgets(prompt: str, aggregates: dict, *, max_charts: int = 2) -> list[dict]:
+    from agents.dashboard_chart_builder import build_widgets_from_prompt
+
+    widgets = build_widgets_from_prompt(prompt, max_charts=max_charts)
+    if widgets:
+        return widgets
+    return [_build_add_widget(prompt, aggregates)]
 
 
 def run_dashboard_editor(
@@ -189,9 +175,14 @@ def run_dashboard_editor(
                 )
                 reply = f"Refreshed data for {target_id}."
     else:
-        widget = _build_add_widget(prompt, aggregates)
-        mutations.append({"type": "ADD_WIDGET", "payload": {"Widget": widget}})
-        reply = f"Added {widget.get('title', 'a new widget')} to the dashboard (existing widgets preserved)."
+        new_widgets = _build_add_widgets(prompt, aggregates, max_charts=2)
+        for widget in new_widgets:
+            mutations.append({"type": "ADD_WIDGET", "payload": {"Widget": widget}})
+        titles = ", ".join(f"«{w.get('title', 'chart')}»" for w in new_widgets)
+        reply = (
+            f"Added {len(new_widgets)} chart(s) to the dashboard: {titles}. "
+            "Existing widgets were preserved."
+        )
 
     if os.environ.get("HF_TOKEN") and intent == "ADD":
         try:

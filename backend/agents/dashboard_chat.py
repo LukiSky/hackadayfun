@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import os
+
 from agents.dashboard_insights import generate_dashboard_insight
 
 _CHART_WIDGET_IDS = {
@@ -82,6 +84,7 @@ def handle_chat_message(payload: dict) -> dict:
     active_filters = payload.get("activeFilters") or {}
     pending = payload.get("pendingDashboardCommands") or []
 
+    session_id = payload.get("session_id")
     insight_payload = {
         "question": text,
         "mode": "chat",
@@ -89,7 +92,27 @@ def handle_chat_message(payload: dict) -> dict:
         "aggregates": payload.get("aggregates") or {},
         "evidenceRows": payload.get("evidenceRows") or [],
         "availableFields": payload.get("availableFields") or {},
+        "session_id": session_id,
     }
+    if os.environ.get("HF_TOKEN"):
+        try:
+            from agents.ask_agent import ask_data_question
+
+            ask_result = ask_data_question(text, session_id=session_id)
+            if ask_result.get("answer"):
+                commands = build_dashboard_commands(
+                    active_filters=active_filters,
+                    suggested_chart=None,
+                    pending=pending,
+                )
+                return {
+                    "botReply": ask_result["answer"],
+                    "dashboardCommands": commands,
+                    "source": "langchain",
+                    "session_id": session_id,
+                }
+        except Exception:
+            pass
     insight = generate_dashboard_insight(insight_payload)
 
     commands = build_dashboard_commands(

@@ -48,8 +48,10 @@ def is_dashboard_control_prompt(prompt: str) -> bool:
 
 
 _CHART_IN_QUESTION = re.compile(
-    r"\b(add|show|create|generate|plot|draw)\b.*\b(chart|graph|visual|pie|bar|line)\b"
-    r"|\b(chart|graph)\b.*\b(by|of|for|showing)\b",
+    r"\b(add|show|create|generate|plot|draw|build|make|display)\b.*\b(chart|graph|visual|pie|bar|line|kpi)\b"
+    r"|\b(chart|graph)\b.*\b(by|of|for|showing)\b"
+    r"|\b(bar|line|pie|donut)\s+chart\b"
+    r"|\bvisuali[sz]e\b",
     re.I,
 )
 

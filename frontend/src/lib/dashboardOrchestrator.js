@@ -16,6 +16,7 @@ export async function orchestrateLLM({
   useSpeaker = true,
   storyMode = false,
   questionMode = false,
+  sessionId = null,
 }) {
   const response = await fetch("/api/llm/orchestrate", {
     method: "POST",
@@ -32,6 +33,7 @@ export async function orchestrateLLM({
       useSpeaker,
       storyMode,
       questionMode,
+      session_id: sessionId,
     }),
   });
 
