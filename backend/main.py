@@ -22,7 +22,7 @@ if str(BACKEND_ROOT) not in sys.path:
 # Prefer backend/.env so DATASET_FILE points at the LifeChanger CSV, not a stale shell export.
 load_dotenv(BACKEND_ROOT / ".env", override=True)
 
-from routers import impact, tts
+from routers import impact
 
 FRONTEND_ORIGIN = os.environ.get("FRONTEND_ORIGIN", "http://localhost:5173")
 F5_TTS_ENABLED = os.environ.get("F5_TTS_ENABLED", "1") == "1"
@@ -30,12 +30,14 @@ F5_TTS_ENABLED = os.environ.get("F5_TTS_ENABLED", "1") == "1"
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Drop any stale singleton (e.g. created with empty F5_TTS_DEVICE before .env load).
-    from tts.synthesis.service import F5TtsService
-
-    F5TtsService._instance = None
     app.state.tts_enabled = F5_TTS_ENABLED
     app.state.tts_service = None  # lazy-loaded on first POST /api/tts/speak
+
+    if F5_TTS_ENABLED:
+        # Drop any stale singleton (e.g. created with empty F5_TTS_DEVICE before .env load).
+        from tts.synthesis.service import F5TtsService
+
+        F5TtsService._instance = None
     yield
 
 
@@ -92,7 +94,10 @@ def create_app() -> FastAPI:
         }
 
     app.include_router(impact.router)
-    app.include_router(tts.router)
+    if F5_TTS_ENABLED:
+        from routers import tts
+
+        app.include_router(tts.router)
     return app
 
 
