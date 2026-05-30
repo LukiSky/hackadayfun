@@ -21,27 +21,45 @@ _analytics_cache: dict[str, dict] = {}
 _predictions_cache: dict[str, dict] = {}
 
 
+def _resolve_dataset_path(filename: str | None = None) -> Path:
+    """Resolve LifeChanger CSV/JSON for local dev and Vercel serverless layouts."""
+    if filename:
+        path = Path(filename)
+        return path if path.is_absolute() else (_DATA_DIR.parent / path).resolve()
+
+    env_path = os.environ.get("DATASET_FILE")
+    if env_path:
+        path = Path(env_path)
+        if path.is_absolute():
+            return path
+        backend_root = _DATA_DIR.parent
+        candidates = [
+            path,
+            backend_root / path,
+            _DATA_DIR / path.name,
+        ]
+        for candidate in candidates:
+            if candidate.is_file():
+                return candidate.resolve()
+        return (_DATA_DIR / path.name).resolve()
+
+    if _DEFAULT_CSV.is_file():
+        return _DEFAULT_CSV.resolve()
+    if _DEFAULT_JSON.is_file():
+        return _DEFAULT_JSON.resolve()
+    return _LEGACY_FILE.resolve()
+
+
 class MockDataRepository:
     def __init__(self, filename: str | None = None):
-        env_path = os.environ.get("DATASET_FILE")
-        if filename:
-            self.filename = Path(filename)
-        elif env_path:
-            path = Path(env_path)
-            if path.is_absolute():
-                self.filename = path
-            else:
-                backend_root = _DATA_DIR.parent
-                candidates = [path, backend_root / path, _DATA_DIR / path.name]
-                self.filename = next((c for c in candidates if c.exists()), backend_root / path)
-        elif _DEFAULT_CSV.exists():
-            self.filename = _DEFAULT_CSV
-        elif _DEFAULT_JSON.exists():
-            self.filename = _DEFAULT_JSON
-        else:
-            self.filename = _LEGACY_FILE
+        self.filename = _resolve_dataset_path(filename)
 
     def load_dataset(self) -> dict:
+        if not self.filename.is_file():
+            raise FileNotFoundError(
+                f"Dataset not found: {self.filename}. "
+                f"Set DATASET_FILE or commit backend/data/LifeChanger_Sample_Data_Populated_10000.csv."
+            )
         if self.filename.suffix.lower() == ".csv":
             return load_lifechanger_csv(self.filename)
         with open(self.filename, "r", encoding="utf-8") as file:

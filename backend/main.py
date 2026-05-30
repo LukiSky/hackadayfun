@@ -25,7 +25,19 @@ load_dotenv(BACKEND_ROOT / ".env", override=True)
 from routers import impact
 
 FRONTEND_ORIGIN = os.environ.get("FRONTEND_ORIGIN", "http://localhost:5173")
-F5_TTS_ENABLED = os.environ.get("F5_TTS_ENABLED", "1") == "1"
+
+
+def _tts_enabled() -> bool:
+    """TTS needs GPU/torch; off by default on Vercel unless explicitly enabled."""
+    explicit = os.environ.get("F5_TTS_ENABLED")
+    if explicit is not None:
+        return explicit.strip().lower() in ("1", "true", "yes")
+    if os.environ.get("VERCEL"):
+        return False
+    return True
+
+
+F5_TTS_ENABLED = _tts_enabled()
 
 
 @asynccontextmanager
@@ -94,10 +106,25 @@ def create_app() -> FastAPI:
         }
 
     app.include_router(impact.router)
+
     if F5_TTS_ENABLED:
         from routers import tts
 
         app.include_router(tts.router)
+    else:
+
+        @app.get("/api/tts/health")
+        def tts_health_disabled():
+            return {
+                "enabled": False,
+                "model_loaded": False,
+                "device": "n/a",
+                "engine": "f5-tts",
+                "reference_voices_ready": False,
+                "reference_voices_count": 0,
+                "message": "TTS disabled (set F5_TTS_ENABLED=1 locally to use F5-TTS).",
+            }
+
     return app
 
 

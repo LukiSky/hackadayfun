@@ -6,6 +6,7 @@
   "functions": {
     "api/index.py": {
       "maxDuration": 60,
+      "includeFiles": "backend/data/**",
       "excludeFiles": "{frontend/**,**/*.test.py,backend/tts/**,**/__pycache__/**}"
     }
   },
